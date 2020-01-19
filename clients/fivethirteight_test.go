@@ -2,6 +2,7 @@ package clients
 
 import (
 	"fmt"
+	"io/ioutil"
 	"testing"
 )
 
@@ -12,4 +13,7 @@ func TestGetStateOfRace(t *testing.T) {
 	}
 
 	fmt.Printf("%v", res)
+
+	d1 := []byte(fmt.Sprintf("%v", res))
+	ioutil.WriteFile("file.txt", d1, 0644)
 }

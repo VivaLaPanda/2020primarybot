@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+var states = []string{"alabama", "alaska", "arizona", "arkansas", "california", "colorado", "connecticut", "delaware", "florida", "georgia", "guam", "hawaii", "idaho", "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana", "maine", "district-of-columbia", "democrats-abroad", "maryland", "massachusetts", "michigan", "minnesota", "mississippi", "missouri", "montana", "nebraska", "nevada", "new-hampshire", "new-jersey", "new-mexico", "new-york", "north-carolina", "north-dakota", "northern-marianas", "ohio", "oklahoma", "oregon", "puerto-rico", "pennsylvania", "rhode-island", "south-carolina", "south-dakota", "tennessee", "texas", "utah", "vermont", "virgin-islands", "virginia", "washington", "west-virginia", "wisconsin", "wyoming"}
+
 type PrimaryState struct {
 	overall []CandidateStats
 	states  map[string][]CandidateStats
@@ -26,12 +28,19 @@ type CandidateStats struct {
 func GetStateOfRace() (raceState PrimaryState, err error) {
 	raceState = PrimaryState{}
 
-	raceState.overall, err = getOverallRaceState()
+	raceState.overall, err = getOverallRace()
+	raceState.states = make(map[string][]CandidateStats)
+	for _, elem := range states {
+		raceState.states[elem], err = getStateStats(elem)
+		if err != nil {
+			return
+		}
+	}
 
 	return
 }
 
-func getOverallRaceState() (overall []CandidateStats, err error) {
+func getOverallRace() (overall []CandidateStats, err error) {
 	resp, getErr := http.Get("https://projects.fivethirtyeight.com/2020-primary-forecast/js/data.js")
 	if getErr != nil {
 		err = fmt.Errorf("Failed to fetch 538 url; ERR: %v", getErr)
@@ -51,6 +60,23 @@ func getOverallRaceState() (overall []CandidateStats, err error) {
 	data = strings.Trim(data, "parse('{\"\":")
 
 	err = json.Unmarshal([]byte(data), &overall)
+
+	return
+}
+
+func getStateStats(state string) (stateStats []CandidateStats, err error) {
+	resp, getErr := http.Get("https://projects.fivethirtyeight.com/2020-primary-forecast/" + state + ".json")
+	if getErr != nil {
+		err = fmt.Errorf("Failed to fetch 538 url; ERR: %v", getErr)
+		return
+	}
+
+	respReceiver := struct {
+		State_chances []CandidateStats
+	}{stateStats}
+
+	err = json.NewDecoder(resp.Body).Decode(&respReceiver)
+	stateStats = respReceiver.State_chances
 
 	return
 }
