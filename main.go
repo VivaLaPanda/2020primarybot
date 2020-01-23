@@ -3,12 +3,12 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"os"
+	"strings"
 	"time"
 
-	"github.com/dghubble/go-twitter/twitter"
-	"github.com/dghubble/oauth1"
-	"github.com/vivalapanda/edenradiostatus/fetchhtml"
+	"github.com/vivalapanda/2020primarybot/clients"
 )
 
 var DEBUG bool
@@ -16,12 +16,11 @@ var DEBUG bool
 func main() {
 	DEBUG = false
 	stopCode := false
-	ticker := time.NewTicker(time.Minute * 30)
-	djWas := ""
+	ticker := time.NewTicker(time.Hour * 24)
 	go func() {
 		for _ = range ticker.C {
 			var err error
-			djWas, err = task(djWas)
+			err = task()
 
 			if err != nil {
 				fmt.Printf("%v\n", err)
@@ -32,7 +31,7 @@ func main() {
 	}()
 
 	fmt.Printf("Eden Radio Status Bot!\n")
-	fmt.Printf("Usage:\n  Kill: 'k'\n  Force Poll: 'p'\n  Debug Poll: 'd'\n")
+	fmt.Printf("Usage:\n  Kill: 'k'\n  Force Poll: 'p'\n")
 	for stopCode == false {
 		fmt.Printf("Enter your desired operation: ")
 		scanner := bufio.NewScanner(os.Stdin)
@@ -46,23 +45,16 @@ func main() {
 		case 'p':
 			fmt.Println("Forcing poll")
 			var err error
-			djWas, err = task(djWas)
+			err = task()
 
 			if err != nil {
 				fmt.Printf("%v\n", err)
 				stopCode = true
 				return
 			}
-		case 'd':
-			fmt.Println("Forcing poll without tweeting")
-			DEBUG = true
-			var err error
-			djWas, err = task(djWas)
-			fmt.Printf("%v, %v\n", djWas, err)
-			DEBUG = false
 		default:
 			fmt.Println("I'm sorry, I didn't understand that...")
-			fmt.Printf("Usage:\n  Kill: 'k'\n  Force Poll: 'p'\n  Debug Poll: 'd'\n")
+			fmt.Printf("Usage:\n  Kill: 'k'\n  Force Poll: 'p'\n")
 		}
 
 		fmt.Println("What do you want to do?")
@@ -73,93 +65,29 @@ func main() {
 	fmt.Println("Ticker stopped")
 	return
 }
-
-func task(djWas string) (string, error) {
-	// Get the current DJ
-	djIs, err := pollForDj()
-
-	// If we fail try 2 more times
-	errCount := 0
-	for errCount < 3 && err != nil {
-		errCount++
-		time.Sleep(time.Second * time.Duration(15*errCount^2))
-		djIs, err = pollForDj()
-	}
-
-	// Still didn't get a good answer, give up and shut down
+func task() (err error) {
+	primaryState, err := clients.GetStateOfRace()
 	if err != nil {
-		err = fmt.Errorf("FATAL ERROR. Couldn't poll Eden Radio: %v", err)
-		return "", err
+		return
 	}
 
-	// Use string to decide on message to tweet
-	var tweetText string
-	if djIs != djWas {
-		if djIs == "Bot-sama" {
-			if djWas != "" {
-				tweetText = fmt.Sprintf("%v is headed off.", djWas)
-			} else {
-				tweetText = fmt.Sprintf("Bot waking up. Good Morning!")
-			}
-		} else {
-			tweetText = fmt.Sprintf("LIVE on Eden: %v", djIs)
-		}
+	GetOverallSummary(primaryState.Overall)
 
-		djWas = djIs
-
-		// Attempt send
-		err = sendTweet(tweetText)
-
-		// If we fail try 2 more times
-		errCount = 0
-		for errCount < 3 && err != nil {
-			errCount++
-			time.Sleep(time.Second * time.Duration(15*errCount^2))
-			err = sendTweet(tweetText)
-		}
-
-		// Still didn't get a good answer, give up and shut down
-		if err != nil {
-			err = fmt.Errorf("FATAL ERROR. Couldn't send tweet: %v", err)
-			return "", err
-		}
-	}
-
-	// Return the new djWas value
-	return djWas, nil
+	return nil
 }
 
-func pollForDj() (djName string, err error) {
-	djString, pollError := fetchhtml.PollUrlForID("http://edenofthewest.com/", "status-dj")
-	if pollError != nil {
-		return "", pollError
-	}
+func GetOverallSummary(overallStats clients.RaceStats) (summaryString string) {
+	deltas := clients.GetDeltas(overallStats)
+	stringDeltas := make([]string, 0)
 
-	return djString, nil
-}
-
-func sendTweet(text string) (err error) {
-	config := oauth1.NewConfig(consumerKey, consumerSecret)
-	token := oauth1.NewToken(accessToken, accessSecret)
-	httpClient := config.Client(oauth1.NoContext, token)
-
-	// Twitter client
-	client := twitter.NewClient(httpClient)
-
-	// Send a Tweet
-	if DEBUG != true {
-		_, _, tweetErr := client.Statuses.Update(text, nil)
-		if tweetErr != nil {
-			return tweetErr
-		}
-	} else {
-		_, _, tweetErr := client.Timelines.HomeTimeline(&twitter.HomeTimelineParams{
-			Count: 20,
-		})
-		if tweetErr != nil {
-			return tweetErr
+	for name, flt := range deltas {
+		intDelta := int64(math.RoundToEven(100 * flt))
+		if intDelta < 0 {
+			stringDeltas = append(stringDeltas, fmt.Sprintf("%s: %d", name, intDelta))
+		} else if intDelta > 0 {
+			stringDeltas = append(stringDeltas, fmt.Sprintf("%s: +%d", name, intDelta))
 		}
 	}
 
-	return
+	return strings.Join(stringDeltas, "\n")
 }

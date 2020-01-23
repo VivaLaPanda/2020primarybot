@@ -9,29 +9,13 @@ import (
 	"strings"
 )
 
-var states = []string{"alabama", "alaska", "arizona", "arkansas", "california", "colorado", "connecticut", "delaware", "florida", "georgia", "guam", "hawaii", "idaho", "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana", "maine", "district-of-columbia", "democrats-abroad", "maryland", "massachusetts", "michigan", "minnesota", "mississippi", "missouri", "montana", "nebraska", "nevada", "new-hampshire", "new-jersey", "new-mexico", "new-york", "north-carolina", "north-dakota", "northern-marianas", "ohio", "oklahoma", "oregon", "puerto-rico", "pennsylvania", "rhode-island", "south-carolina", "south-dakota", "tennessee", "texas", "utah", "vermont", "virgin-islands", "virginia", "washington", "west-virginia", "wisconsin", "wyoming"}
-
-type PrimaryState struct {
-	overall []CandidateStats
-	states  map[string][]CandidateStats
-}
-
-// String is the candidate, int is their chances as percentage
-type CandidateStats struct {
-	Candidate string  `json:"candidate"`
-	Date      string  `json:"date"`
-	Majority  float64 `json:"majority"`
-	Plurality float64 `json:"plurality"`
-	Running   bool    `json:"running"`
-}
-
 func GetStateOfRace() (raceState PrimaryState, err error) {
 	raceState = PrimaryState{}
 
-	raceState.overall, err = getOverallRace()
-	raceState.states = make(map[string][]CandidateStats)
+	raceState.Overall, err = getOverallRace()
+	raceState.States = make(map[string]RaceStats)
 	for _, elem := range states {
-		raceState.states[elem], err = getStateStats(elem)
+		raceState.States[elem], err = getStateStats(elem)
 		if err != nil {
 			return
 		}

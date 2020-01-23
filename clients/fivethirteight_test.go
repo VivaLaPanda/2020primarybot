@@ -1,19 +1,25 @@
 package clients
 
 import (
-	"fmt"
-	"io/ioutil"
 	"testing"
+	"time"
 )
 
 func TestGetStateOfRace(t *testing.T) {
 	res, err := GetStateOfRace()
 	if err != nil {
 		t.Errorf("TestGetStateOfRace errored: %v\n", err)
+		return
 	}
 
-	fmt.Printf("%v", res)
+	if len(res.Overall) < 1 {
+		t.Errorf("TestGetStateOfRace failed because it returned no results: %v\n", res)
+		return
+	}
 
-	d1 := []byte(fmt.Sprintf("%v", res))
-	ioutil.WriteFile("file.txt", d1, 0644)
+	currentTime := time.Now()
+	todayString := currentTime.Format("2006-01-02")
+	if res.Overall[0].Date != todayString {
+		t.Errorf("TestGetStateOfRace failed because most recent result wasn't today: %v\n", res)
+	}
 }
