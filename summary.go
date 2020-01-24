@@ -21,8 +21,12 @@ func OverallSummary(overallStats clients.RaceStats) (summaryString string) {
 			stringDeltas = append(stringDeltas, fmt.Sprintf("%s: +%d", name, intDelta))
 		}
 	}
+	
+	if len(stringDeltas) == 0 {
+		return "No changes in the overall race"
+	}
 
-	return strings.Join(stringDeltas, "\n")
+	return "Overall race changes:\n" + strings.Join(stringDeltas, "\n")
 }
 
 type deltaTracker struct {
@@ -48,7 +52,7 @@ func BiggestMoverStates(stateRaces map[string]clients.RaceStats) (summaryString 
 		}
 	}
 
-	return strings.Join(stringDeltas, "\n")
+	return "State-level race changes:\n" + strings.Join(stringDeltas, "\n")
 }
 
 func calcBiggestMovers(stateRaces map[string]clients.RaceStats) (biggestMovers []deltaTracker) {

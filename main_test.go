@@ -16,7 +16,7 @@ func TestOverallSummary(t *testing.T) {
 	summary := OverallSummary(primaryState.Overall)
 
 	if len(summary) == 0 {
-		t.Errorf("TestOverallSummary failed because it produced a 0 len string\n")
+		t.Errorf("TestOverallSummary failed because it produced a 0 len string.\n")
 		return
 	}
 
