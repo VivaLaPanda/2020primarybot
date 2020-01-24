@@ -3,11 +3,11 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"math"
 	"os"
-	"strings"
 	"time"
 
+	"github.com/dghubble/go-twitter/twitter"
+	"github.com/dghubble/oauth1"
 	"github.com/vivalapanda/2020primarybot/clients"
 )
 
@@ -71,23 +71,29 @@ func task() (err error) {
 		return
 	}
 
-	GetOverallSummary(primaryState.Overall)
+	// Get text to tweet
+	mainText := OverallSummary(primaryState.Overall)
+	statesText := BiggestMoverStates(primaryState.States)
 
-	return nil
-}
+	// Prepare our twitter access
+	config := oauth1.NewConfig(consumerKey, consumerSecret)
+	token := oauth1.NewToken(accessToken, accessSecret)
+	httpClient := config.Client(oauth1.NoContext, token)
 
-func GetOverallSummary(overallStats clients.RaceStats) (summaryString string) {
-	deltas := clients.GetDeltas(overallStats)
-	stringDeltas := make([]string, 0)
+	// Twitter client
+	client := twitter.NewClient(httpClient)
 
-	for name, flt := range deltas {
-		intDelta := int64(math.RoundToEven(100 * flt))
-		if intDelta < 0 {
-			stringDeltas = append(stringDeltas, fmt.Sprintf("%s: %d", name, intDelta))
-		} else if intDelta > 0 {
-			stringDeltas = append(stringDeltas, fmt.Sprintf("%s: +%d", name, intDelta))
-		}
+	// Send a Tweet with he overall data
+	tweet, _, tweetErr := client.Statuses.Update(mainText, nil)
+	if tweetErr != nil {
+		return tweetErr
 	}
 
-	return strings.Join(stringDeltas, "\n")
+	// Reply to that tweet with the state data
+	tweet, _, tweetErr = client.Statuses.Update(statesText, &twitter.StatusUpdateParams{InReplyToStatusID: tweet.ID})
+	if tweetErr != nil {
+		return tweetErr
+	}
+
+	return nil
 }

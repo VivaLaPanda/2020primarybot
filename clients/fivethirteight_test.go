@@ -19,7 +19,7 @@ func TestGetStateOfRace(t *testing.T) {
 
 	currentTime := time.Now()
 	todayString := currentTime.Format("2006-01-02")
-	if res.Overall[0].Date != todayString {
+	if res.Overall[0].GetDate() != todayString {
 		t.Errorf("TestGetStateOfRace failed because most recent result wasn't today: %v\n", res)
 	}
 }

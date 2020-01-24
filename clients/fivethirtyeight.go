@@ -43,7 +43,13 @@ func getOverallRace() (overall []CandidateStats, err error) {
 	data := matches[2]
 	data = strings.Trim(data, "parse('{\"\":")
 
-	err = json.Unmarshal([]byte(data), &overall)
+	var rawStats []OverallStats
+	err = json.Unmarshal([]byte(data), &rawStats)
+
+	overall = make([]CandidateStats, len(rawStats))
+	for idx, elem := range rawStats {
+		overall[idx] = CandidateStats(elem)
+	}
 
 	return
 }
@@ -56,11 +62,16 @@ func getStateStats(state string) (stateStats []CandidateStats, err error) {
 	}
 
 	respReceiver := struct {
-		State_chances []CandidateStats
-	}{stateStats}
+		State_chances []StateStats
+	}{}
 
 	err = json.NewDecoder(resp.Body).Decode(&respReceiver)
-	stateStats = respReceiver.State_chances
+	rawStats := respReceiver.State_chances
 
-	return
+	stateStats = make([]CandidateStats, len(rawStats))
+	for idx, elem := range rawStats {
+		stateStats[idx] = CandidateStats(elem)
+	}
+
+	return stateStats, err
 }

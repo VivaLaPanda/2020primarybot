@@ -13,7 +13,7 @@ type PrimaryState struct {
 }
 
 // String is the candidate, int is their chances as percentage
-type CandidateStats struct {
+type OverallStats struct {
 	Candidate string  `json:"candidate"`
 	Date      string  `json:"date"`
 	Majority  float64 `json:"majority"`
@@ -21,11 +21,28 @@ type CandidateStats struct {
 	Running   bool    `json:"running"`
 }
 
-type RaceStats []CandidateStats
+func (s OverallStats) Name() string         { return s.Candidate }
+func (s OverallStats) GetDate() string      { return s.Date }
+func (s OverallStats) WinMajority() float64 { return s.Plurality }
 
-func (a RaceStats) Len() int           { return len(a) }
-func (a RaceStats) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a RaceStats) Less(i, j int) bool { return a[i].Date < a[j].Date }
+type StateStats struct {
+	Candidate         string  `json:"candidate"`
+	Date              string  `json:"date"`
+	DelegatePlurality float64 `json:"delegate_plurality"`
+	VotePlurality     float64 `json:"vote_plurality"`
+}
+
+func (s StateStats) Name() string         { return s.Candidate }
+func (s StateStats) GetDate() string      { return s.Date }
+func (s StateStats) WinMajority() float64 { return s.DelegatePlurality }
+
+type CandidateStats interface {
+	Name() string
+	GetDate() string
+	WinMajority() float64
+}
+
+type RaceStats []CandidateStats
 
 func (rs RaceStats) GroupByCandidate() (candidates map[string]RaceStats) {
 	candidates = make(map[string]RaceStats)
@@ -33,16 +50,16 @@ func (rs RaceStats) GroupByCandidate() (candidates map[string]RaceStats) {
 
 	for _, stats := range rs {
 		// Only add candidate data if they're running
-		if stats.Running {
+		if stats.WinMajority() > 0 {
 			// Check if the candidate is already in the map, if not, add them
-			group, ok := candidates[stats.Candidate]
+			group, ok := candidates[stats.Name()]
 			if !ok {
 				group = make([]CandidateStats, 0)
 			}
 
-			candidates[stats.Candidate] = append(group, stats)
+			candidates[stats.Name()] = append(group, stats)
 		} else {
-			notRunning = append(notRunning, stats.Candidate)
+			notRunning = append(notRunning, stats.Name())
 		}
 	}
 
@@ -71,7 +88,7 @@ func (rs RaceStats) getYesterdayStats() (res CandidateStats, err error) {
 
 func getAnyStats(rs RaceStats, timestring string) (res CandidateStats, err error) {
 	for _, stats := range rs {
-		if stats.Date == timestring {
+		if stats.GetDate() == timestring {
 			return stats, nil
 		}
 	}
@@ -95,7 +112,7 @@ func GetDeltas(raceState RaceStats) (deltas map[string]float64) {
 			panic("Error calculating deltas")
 		}
 
-		deltas[name] = today.Majority - yesterday.Majority
+		deltas[name] = today.WinMajority() - yesterday.WinMajority()
 	}
 
 	return
